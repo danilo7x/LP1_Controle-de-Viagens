@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controlador de Viagens — Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1c232d;
+    --line: #2a323d;
+    --ink: #e6edf3;
+    --ink-dim: #8b97a6;
+    --terra: #e8743b;     /* terrestre */
+    --aqua: #2fb4c8;      /* aquatico */
+    --accent: #f2c14e;    /* destaque / em transito */
+    --ok: #56b877;
+    --err: #e2564d;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1a2230 0%, transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  header.top {
+    display: flex; align-items: baseline; gap: 16px;
+    padding: 22px 28px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  }
+  header.top h1 {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin: 0;
+  }
+  header.top .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--ink-dim); letter-spacing: 0.04em;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+    margin-right: 6px; background: var(--err); vertical-align: middle;
+  }
+  .status-dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+
+  .wrap {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    padding: 20px 28px 40px;
+    max-width: 1400px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+
+  .col-actions { display: flex; flex-direction: column; gap: 14px; }
+  .col-state { display: flex; flex-direction: column; gap: 18px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card > h2 {
+    margin: 0; padding: 12px 16px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .card .body { padding: 14px 16px; }
+
+  /* formularios */
+  details.form { border-bottom: 1px solid var(--line); }
+  details.form:last-child { border-bottom: none; }
+  details.form > summary {
+    list-style: none; cursor: pointer;
+    padding: 11px 16px; font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 9px;
+    transition: background 0.15s;
+  }
+  details.form > summary:hover { background: var(--panel-2); }
+  details.form > summary::-webkit-details-marker { display: none; }
+  .tag {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    width: 20px; height: 20px; border-radius: 5px;
+    display: grid; place-items: center; flex: none;
+    background: var(--panel-2); color: var(--ink-dim); border: 1px solid var(--line);
+  }
+  details[open] > summary .tag { background: var(--accent); color: #1a1206; border-color: var(--accent); }
+  .fields { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 9px; }
+  .fields label {
+    font-size: 11px; color: var(--ink-dim); font-family: 'IBM Plex Mono', monospace;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .fields input, .fields select {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    color: var(--ink); padding: 8px 10px; font-size: 13px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .fields input:focus, .fields select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn {
+    margin-top: 4px; padding: 9px 12px; border-radius: 6px; border: none;
+    background: var(--accent); color: #1a1206; font-weight: 600; font-size: 13px;
+    cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+    transition: filter 0.15s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.ghost { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
+
+  /* clock / avancar */
+  .clock-row { display: flex; gap: 8px; align-items: flex-end; }
+  .clock-row .fields { flex: 1; padding: 0; }
+  .quick { display: flex; gap: 6px; margin-top: 8px; }
+  .quick button {
+    flex: 1; padding: 7px 0; font-size: 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+    cursor: pointer; font-family: 'IBM Plex Mono', monospace;
+  }
+  .quick button:hover { border-color: var(--accent); }
+
+  /* tabelas de estado */
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .pill {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 12px;
+  }
+  .pill .name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 7px; }
+  .pill .meta { font-size: 11px; color: var(--ink-dim); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+  .type-badge {
+    font-size: 9px; font-family: 'IBM Plex Mono', monospace; padding: 1px 6px;
+    border-radius: 20px; font-weight: 600; letter-spacing: 0.05em;
+  }
+  .type-T { background: rgba(232,116,59,0.16); color: var(--terra); }
+  .type-A { background: rgba(47,180,200,0.16); color: var(--aqua); }
+  .loc-transito { color: var(--accent) !important; }
+
+  .viagem-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2);
+    margin-bottom: 8px;
+  }
+  .route { font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+  .route .arrow { color: var(--accent); margin: 0 6px; }
+  .empty { color: var(--ink-dim); font-size: 13px; padding: 6px 0; font-style: italic; }
+
+  .stat-row { display: flex; gap: 14px; }
+  .stat {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .stat .num { font-size: 26px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .stat .lbl { font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+
+  .bar { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .bar > span { display: block; height: 100%; background: var(--terra); }
+
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--panel); border: 1px solid var(--line); padding: 11px 18px;
+    border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: all 0.25s; z-index: 50;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.ok { border-color: var(--ok); }
+  #toast.err { border-color: var(--err); }
+  .foot-actions { display: flex; gap: 8px; }
+  .foot-actions .btn { flex: 1; }
+</style>
+</head>
+<body>
+  <header class="top">
+    <h1>Controlador de Viagens</h1>
+    <span class="sub"><span class="status-dot" id="dot"></span><span id="conn">conectando…</span> · motor C++</span>
+  </header>
+
+  <div class="wrap">
+    <!-- COLUNA DE AÇÕES -->
+    <div class="col-actions">
+      <div class="card">
+        <h2>Cadastros</h2>
+        <details class="form">
+          <summary><span class="tag">CI</span> Nova cidade</summary>
+          <div class="fields">
+            <label>Nome <input id="ci_nome" placeholder="Ex: Natal"></label>
+            <button class="btn" onclick="addCidade()">Cadastrar cidade</button>
+          </div>
+        </details>
+        <details class="form">
+          <summary><span class="tag">TJ</span> Novo trajeto</summary>
+          <div class="fields">
+            <label>Origem <input id="tj_o" placeholder="cidade de origem"></label>
+            <label>Destino <input id="tj_d" placeholder="cidade de destino"></label>
+            <label>Tipo
+              <select id="tj_tipo"><option value="T">Terrestre</option><option value="A">Aquático</option></select>
+            </label>
+            <label>Distância (km) <input id="tj_dist" type="number" placeholder="100"></label>
+            <button class="btn" onclick="addTrajeto()">Cadastrar trajeto</button>
+          </div>
+        </details>
+        <details class="form">
+          <summary><span class="tag">TR</span> Novo transporte</summary>
+          <div class="fields">
+            <label>Nome <input id="tr_nome" placeholder="Ex: Onibus 01"></label>
+            <label>Tipo
+              <select id="tr_tipo"><option value="T">Terrestre</option><option value="A">Aquático</option></select>
+            </label>
+            <label>Capacidade <input id="tr_cap" type="number" placeholder="40"></label>
+            <label>Velocidade (km/h) <input id="tr_vel" type="number" placeholder="60"></label>
+            <label>Distância entre descansos (km, 0=nunca) <input id="tr_dd" type="number" placeholder="0"></label>
+            <label>Tempo de descanso (h) <input id="tr_td" type="number" placeholder="0"></label>
+            <label>Cidade atual <input id="tr_local" placeholder="onde está agora"></label>
+            <button class="btn" onclick="addTransporte()">Cadastrar transporte</button>
+          </div>
+        </details>
+        <details class="form">
+          <summary><span class="tag">PA</span> Novo passageiro</summary>
+          <div class="fields">
+            <label>Nome <input id="pa_nome" placeholder="Ex: Maria"></label>
+            <label>Cidade atual <input id="pa_local" placeholder="onde está agora"></label>
+            <button class="btn" onclick="addPassageiro()">Cadastrar passageiro</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Iniciar viagem</h2>
+        <div class="fields" style="padding-top:14px">
+          <label>Transporte <input id="vg_transp" placeholder="nome do transporte"></label>
+          <label>Origem <input id="vg_o" placeholder="cidade de partida"></label>
+          <label>Destino <input id="vg_d" placeholder="cidade de chegada"></label>
+          <label>Passageiros (separados por vírgula) <input id="vg_pass" placeholder="Joao, Maria"></label>
+          <button class="btn" onclick="iniciarViagem()">Iniciar viagem</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Relógio do sistema</h2>
+        <div class="body">
+          <div class="clock-row">
+            <div class="fields">
+              <label>Avançar horas <input id="av_horas" type="number" value="1"></label>
+            </div>
+            <button class="btn" onclick="avancar()">Avançar</button>
+          </div>
+          <div class="quick">
+            <button onclick="avancarRapido(1)">+1h</button>
+            <button onclick="avancarRapido(6)">+6h</button>
+            <button onclick="avancarRapido(12)">+12h</button>
+            <button onclick="avancarRapido(24)">+24h</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Dados</h2>
+        <div class="body foot-actions">
+          <button class="btn ghost" onclick="salvar()">Salvar</button>
+          <button class="btn ghost" onclick="carregar()">Carregar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA DE ESTADO -->
+    <div class="col-state">
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="s_cidades">0</div><div class="lbl">Cidades</div></div>
+        <div class="stat"><div class="num" id="s_transp">0</div><div class="lbl">Transportes</div></div>
+        <div class="stat"><div class="num" id="s_pass">0</div><div class="lbl">Passageiros</div></div>
+        <div class="stat"><div class="num" id="s_viagens">0</div><div class="lbl">Em viagem</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Viagens em andamento <span id="viagens_count" class="sub"></span></h2>
+        <div class="body" id="viagens_box"><div class="empty">Nenhuma viagem em andamento.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Transportes</h2>
+        <div class="body grid-cards" id="transp_box"><div class="empty">Nenhum transporte.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Passageiros</h2>
+        <div class="body grid-cards" id="pass_box"><div class="empty">Nenhum passageiro.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Cidades mais visitadas</h2>
+        <div class="body" id="cidades_box"><div class="empty">Nenhuma cidade.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Mapa de trajetos</h2>
+        <div class="body" id="trajetos_box"><div class="empty">Nenhum trajeto.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+const API = '';
+
+function toast(msg, tipo) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (tipo || '');
+  setTimeout(() => t.className = '', 2200);
+}
+
+async function post(rota, dados) {
+  const body = new URLSearchParams(dados).toString();
+  const r = await fetch(API + rota, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body
+  });
+  return r.json();
+}
+
+async function refresh() {
+  try {
+    const r = await fetch(API + '/api/estado');
+    const s = await r.json();
+    setConn(true);
+    render(s);
+  } catch (e) {
+    setConn(false);
+  }
+}
+
+function setConn(on) {
+  document.getElementById('dot').className = 'status-dot' + (on ? ' on' : '');
+  document.getElementById('conn').textContent = on ? 'conectado' : 'sem conexão';
+}
+
+function badge(tipo) {
+  const nome = tipo === 'A' ? 'AQUA' : 'TERR';
+  return `<span class="type-badge type-${tipo}">${nome}</span>`;
+}
+
+function render(s) {
+  // estatisticas
+  document.getElementById('s_cidades').textContent = s.cidades.length;
+  document.getElementById('s_transp').textContent = s.transportes.length;
+  document.getElementById('s_pass').textContent = s.passageiros.length;
+  document.getElementById('s_viagens').textContent = s.viagens.length;
+
+  // viagens
+  const vb = document.getElementById('viagens_box');
+  document.getElementById('viagens_count').textContent = s.viagens.length ? `(${s.viagens.length})` : '';
+  if (!s.viagens.length) {
+    vb.innerHTML = '<div class="empty">Nenhuma viagem em andamento.</div>';
+  } else {
+    vb.innerHTML = s.viagens.map(v => `
+      <div class="viagem-row">
+        <span class="type-badge type-T" style="background:rgba(242,193,78,0.16);color:var(--accent)">●</span>
+        <div style="flex:1">
+          <div class="route">${esc(v.origem)}<span class="arrow">→</span>${esc(v.destino)}</div>
+          <div class="meta" style="font-size:11px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace">
+            ${esc(v.transporte)} · ${v.passageiros} passageiro(s)
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // transportes
+  const tb = document.getElementById('transp_box');
+  tb.innerHTML = s.transportes.length ? s.transportes.map(t => {
+    const transito = t.local === 'em transito';
+    return `<div class="pill">
+      <div class="name">${esc(t.nome)} ${badge(t.tipo)}</div>
+      <div class="meta ${transito?'loc-transito':''}">📍 ${esc(t.local)}</div>
+      <div class="meta">${t.velocidade} km/h · cap. ${t.capacidade}</div>
+    </div>`;
+  }).join('') : '<div class="empty">Nenhum transporte.</div>';
+
+  // passageiros
+  const pb = document.getElementById('pass_box');
+  pb.innerHTML = s.passageiros.length ? s.passageiros.map(p => {
+    const transito = p.local === 'em transito';
+    return `<div class="pill">
+      <div class="name">${esc(p.nome)}</div>
+      <div class="meta ${transito?'loc-transito':''}">📍 ${esc(p.local)}</div>
+    </div>`;
+  }).join('') : '<div class="empty">Nenhum passageiro.</div>';
+
+  // cidades mais visitadas
+  const cb = document.getElementById('cidades_box');
+  const ord = [...s.cidades].sort((a,b) => b.visitas - a.visitas);
+  const max = Math.max(1, ...ord.map(c => c.visitas));
+  cb.innerHTML = ord.length ? ord.map(c => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px">
+        <span>${esc(c.nome)}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;color:var(--ink-dim)">${c.visitas}</span>
+      </div>
+      <div class="bar"><span style="width:${(c.visitas/max*100)}%"></span></div>
+    </div>`).join('') : '<div class="empty">Nenhuma cidade.</div>';
+
+  // trajetos
+  const trb = document.getElementById('trajetos_box');
+  trb.innerHTML = s.trajetos.length ? s.trajetos.map(t => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)">
+      ${badge(t.tipo)}
+      <span class="route" style="flex:1">${esc(t.origem)}<span class="arrow">↔</span>${esc(t.destino)}</span>
+      <span class="meta" style="font-family:'IBM Plex Mono',monospace;color:var(--ink-dim)">${t.distancia} km</span>
+    </div>`).join('') : '<div class="empty">Nenhum trajeto.</div>';
+}
+
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function val(id) { return document.getElementById(id).value.trim(); }
+function clear(...ids) { ids.forEach(i => document.getElementById(i).value = ''); }
+
+async function addCidade() {
+  if (!val('ci_nome')) return toast('Informe o nome da cidade', 'err');
+  const r = await post('/api/cidade', {nome: val('ci_nome')});
+  toast(r.ok ? 'Cidade cadastrada' : 'Não foi possível cadastrar (nome repetido?)', r.ok?'ok':'err');
+  if (r.ok) clear('ci_nome');
+  refresh();
+}
+async function addTrajeto() {
+  const r = await post('/api/trajeto', {origem:val('tj_o'),destino:val('tj_d'),tipo:val('tj_tipo'),distancia:val('tj_dist')});
+  toast(r.ok ? 'Trajeto cadastrado' : 'Verifique as cidades e a distância', r.ok?'ok':'err');
+  if (r.ok) clear('tj_o','tj_d','tj_dist');
+  refresh();
+}
+async function addTransporte() {
+  const r = await post('/api/transporte', {
+    nome:val('tr_nome'),tipo:val('tr_tipo'),capacidade:val('tr_cap'),velocidade:val('tr_vel'),
+    descanso_dist:val('tr_dd')||'0',descanso_tempo:val('tr_td')||'0',local:val('tr_local')
+  });
+  toast(r.ok ? 'Transporte cadastrado' : 'Verifique os dados e a cidade atual', r.ok?'ok':'err');
+  if (r.ok) clear('tr_nome','tr_cap','tr_vel','tr_dd','tr_td','tr_local');
+  refresh();
+}
+async function addPassageiro() {
+  const r = await post('/api/passageiro', {nome:val('pa_nome'),local:val('pa_local')});
+  toast(r.ok ? 'Passageiro cadastrado' : 'Verifique o nome e a cidade', r.ok?'ok':'err');
+  if (r.ok) clear('pa_nome','pa_local');
+  refresh();
+}
+async function iniciarViagem() {
+  const r = await post('/api/viagem', {transporte:val('vg_transp'),origem:val('vg_o'),destino:val('vg_d'),passageiros:val('vg_pass')});
+  toast(r.ok ? 'Viagem iniciada!' : 'Não foi possível iniciar (veja origem/rota/capacidade)', r.ok?'ok':'err');
+  refresh();
+}
+async function avancar() {
+  const h = val('av_horas') || '1';
+  await post('/api/avancar', {horas:h});
+  toast(`Avançou ${h}h`, 'ok');
+  refresh();
+}
+async function avancarRapido(h) {
+  await post('/api/avancar', {horas:h});
+  toast(`Avançou ${h}h`, 'ok');
+  refresh();
+}
+async function salvar() { await post('/api/salvar', {}); toast('Dados salvos', 'ok'); }
+async function carregar() { await post('/api/carregar', {}); toast('Dados carregados', 'ok'); refresh(); }
+
+// atualiza a cada 2s e na carga
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
